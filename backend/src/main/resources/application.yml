@@ -1,0 +1,101 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: server-management-console
+  
+  datasource:
+    url: jdbc:h2:file:./data/management-console;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+
+# Management Console Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+# Application Configuration
+app:
+  # Monitoring intervals (in milliseconds)
+  monitoring:
+    health-check-interval: 10000
+    metrics-poll-interval: 15000
+    frontend-check-interval: 30000
+  
+  # Ollama AI Configuration
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      model: llama3.2:1b
+      enabled: true
+      timeout: 30000
+  
+  # Lifecycle control settings
+  lifecycle:
+    max-restart-attempts: 3
+    restart-cooldown-seconds: 60
+    graceful-shutdown-timeout: 30
+  
+  # Security settings
+  security:
+    jwt-secret: c2VydmVyLW1hbmFnZW1lbnQtY29uc29sZS1zZWNyZXQta2V5LWZvci1qd3QtdG9rZW4tZ2VuZXJhdGlvbi1taW5pbXVtLTI1Ni1iaXRz
+    jwt-expiration: 86400000
+  
+  # Logging settings
+  logging:
+    base-dir: ./logs
+    max-lines-per-read: 1000
+    max-file-size-mb: 100
+  
+  # Notification settings (configure webhooks as needed)
+  notifications:
+    # Slack webhook URL (get from: https://api.slack.com/messaging/webhooks)
+    slack:
+      webhook-url: ${SLACK_WEBHOOK_URL:}
+    # Discord webhook URL (get from channel settings -> Integrations -> Webhooks)
+    discord:
+      webhook-url: ${DISCORD_WEBHOOK_URL:}
+    # Microsoft Teams webhook URL (get from channel connectors)
+    teams:
+      webhook-url: ${TEAMS_WEBHOOK_URL:}
+    # Email notifications
+    email:
+      enabled: false
+      recipients: ${NOTIFICATION_EMAIL_RECIPIENTS:}
+      from: noreply@management-console.local
+    # Custom webhooks (comma-separated URLs)
+    custom-webhooks: ${CUSTOM_WEBHOOK_URLS:}
+
+# Logging configuration
+logging:
+  level:
+    root: INFO
+    com.management.console: DEBUG
+    org.springframework.web: INFO
+    SERVICE_OUTPUT: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    path: ./logs
+
