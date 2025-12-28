@@ -572,7 +572,3 @@ All actions are:
 3. Make your changes
 4. Test frontend-backend integration
 5. Submit a pull request
-
-## 📄 License
-
-[Your License Here]
