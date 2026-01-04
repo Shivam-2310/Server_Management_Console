@@ -30,6 +30,7 @@ public class ServiceRegistryService {
 
     private final ManagedServiceRepository serviceRepository;
     private final ServiceMapper serviceMapper;
+    private final ServiceTokenGenerator tokenGenerator;
 
     public ServiceDTO registerService(CreateServiceRequest request) {
         log.info("Registering new service: {}", request.getName());
@@ -59,6 +60,9 @@ public class ServiceRegistryService {
                 ? request.getTags() 
                 : new ArrayList<>();
         
+        // Generate authentication token for service
+        String authToken = tokenGenerator.generateTokenForService(request.getName().trim());
+        
         ManagedService service = ManagedService.builder()
                 .name(request.getName().trim())
                 .description(nullIfEmpty(request.getDescription()))
@@ -79,6 +83,8 @@ public class ServiceRegistryService {
                 .processIdentifier(nullIfEmpty(request.getProcessIdentifier()))
                 .tags(tags)
                 .environment(nullIfEmpty(request.getEnvironment()))
+                .authenticationToken(authToken)
+                .instanceId(null) // Will be set when service registers itself
                 .enabled(true)
                 .isRunning(false)
                 .instanceCount(1)
@@ -98,7 +104,11 @@ public class ServiceRegistryService {
             ManagedService saved = serviceRepository.save(service);
             log.info("Service registered successfully with ID: {}", saved.getId());
             
-            return serviceMapper.toDTO(saved);
+            ServiceDTO dto = serviceMapper.toDTO(saved);
+            // Include authentication token only during registration
+            dto.setAuthenticationToken(saved.getAuthenticationToken());
+            
+            return dto;
         } catch (Exception e) {
             log.error("Failed to register service: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to register service: " + e.getMessage(), e);
@@ -156,9 +166,28 @@ public class ServiceRegistryService {
 
     @Transactional(readOnly = true)
     public List<ServiceDTO> getAllServices() {
-        return serviceRepository.findAll().stream()
-                .map(serviceMapper::toDTO)
-                .collect(Collectors.toList());
+        try {
+            log.debug("Fetching all services from repository");
+            List<ManagedService> services = serviceRepository.findAll();
+            log.debug("Found {} services in repository", services.size());
+            
+            List<ServiceDTO> dtos = services.stream()
+                    .map(service -> {
+                        try {
+                            return serviceMapper.toDTO(service);
+                        } catch (Exception e) {
+                            log.error("Error mapping service {} to DTO: {}", service.getId(), e.getMessage(), e);
+                            throw new RuntimeException("Failed to map service to DTO: " + e.getMessage(), e);
+                        }
+                    })
+                    .collect(Collectors.toList());
+            
+            log.debug("Successfully mapped {} services to DTOs", dtos.size());
+            return dtos;
+        } catch (Exception e) {
+            log.error("Error fetching all services: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to fetch services: " + e.getMessage(), e);
+        }
     }
 
     @Transactional(readOnly = true)

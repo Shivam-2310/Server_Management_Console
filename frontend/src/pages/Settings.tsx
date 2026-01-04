@@ -166,10 +166,10 @@ export function Settings() {
           <div className="p-4 bg-violet-600 border border-violet-500 rounded-lg">
             <div className="flex items-center gap-2 mb-2">
               <Sparkles className="w-4 h-4 text-white" />
-              <span className="text-sm font-medium text-white">Ollama Status</span>
+              <span className="text-sm font-medium text-white">Gemini Status</span>
             </div>
-            <p className="text-sm text-white">Connected to local Ollama instance</p>
-            <p className="text-xs text-violet-200 mt-1">Model: llama3.2:1b</p>
+            <p className="text-sm text-white">Connected to Google Gemini API</p>
+            <p className="text-xs text-violet-200 mt-1">Model: gemini-1.5-flash</p>
           </div>
         </div>
       </Card>

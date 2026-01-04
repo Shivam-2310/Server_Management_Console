@@ -122,12 +122,21 @@ export function ServiceRegistration() {
 
       const newService = await api.createService(serviceData);
       
+      // Show authentication token if provided
+      if (newService.authenticationToken) {
+        // Store token temporarily to show in success message
+        setSuccess(true);
+        // Show token in a modal or alert
+        const tokenMessage = `Service registered successfully!\n\nAuthentication Token:\n${newService.authenticationToken}\n\n⚠️ Save this token securely - it won't be shown again!`;
+        alert(tokenMessage);
+      }
+      
       // Invalidate and refetch services query to refresh the list
       await queryClient.invalidateQueries({ queryKey: ['services'] });
       await queryClient.refetchQueries({ queryKey: ['services'] });
       
       setSuccess(true);
-      setTimeout(() => navigate('/services'), 1500);
+      setTimeout(() => navigate('/services'), 2000);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       setError(error.response?.data?.message || 'Failed to register service');

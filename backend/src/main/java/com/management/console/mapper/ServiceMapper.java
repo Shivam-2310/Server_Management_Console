@@ -50,6 +50,8 @@ public class ServiceMapper {
                 .tags(tags)
                 .environment(service.getEnvironment())
                 .enabled(service.getEnabled() != null ? service.getEnabled() : true)
+                .authenticationToken(null) // Never expose token in regular queries
+                .instanceId(service.getInstanceId())
                 .createdAt(service.getCreatedAt())
                 .updatedAt(service.getUpdatedAt())
                 .build();

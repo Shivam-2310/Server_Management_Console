@@ -11,7 +11,7 @@ A centralized management console that monitors and controls backend and frontend
 - **Lifecycle Control**: Safe start/stop/restart/scale operations with confirmation and audit
 - **Incident Management**: Automatic incident creation, AI-generated summaries, severity tracking
 
-### AI Intelligence (Ollama Integration)
+### AI Intelligence (Google Gemini Integration)
 - **Anomaly Detection**: AI-driven detection of memory leaks, CPU saturation, error spikes
 - **Risk Scoring**: Real-time stability and risk scores (0-100) for each service
 - **Incident Summaries**: AI-generated summaries explaining what happened and recommended actions
@@ -26,23 +26,20 @@ A centralized management console that monitors and controls backend and frontend
 
 - Java 17+
 - Maven 3.8+
-- Ollama (for AI features) with llama3.2:1b model
+- Google Gemini API Key (configured in application.yml, for AI features)
 
 ## Quick Start
 
-### 1. Start Ollama (Optional, for AI features)
-```bash
-ollama run llama3.2:1b
-```
+### 1. Build and Run
 
-### 2. Build and Run
+**Note:** AI features use Google Gemini API (configured in `application.yml`). The API key is already set up.
 ```bash
 cd backend
 mvn clean install
 mvn spring-boot:run
 ```
 
-### 3. Access the Application
+### 2. Access the Application
 - API: http://localhost:8080
 - H2 Console: http://localhost:8080/h2-console
 - WebSocket: ws://localhost:8080/ws/dashboard
@@ -136,9 +133,9 @@ app:
     frontend-check-interval: 30000 # Frontend health checks
   
   ai:
-    ollama:
-      base-url: http://localhost:11434
-      model: llama3.2:1b
+    gemini:
+      api-key: AIzaSyCId4zpV3OlqMY1MqNtjeRtYgE12TSzdn0
+      model: gemini-1.5-flash
       enabled: true
   
   lifecycle:
@@ -156,7 +153,7 @@ Management Backend
  ├── Lifecycle Controller     - Execute safe lifecycle operations
  ├── Frontend Monitor         - HTTP/synthetic checks for frontends
  ├── Scheduler                - Polling and background jobs
- ├── AI Intelligence Layer    - Ollama integration for insights
+ ├── AI Intelligence Layer    - Gemini API integration for insights
  ├── Audit & Safety Engine    - RBAC and complete audit trail
  └── API Layer                - REST + WebSocket endpoints
 ```
@@ -177,7 +174,7 @@ All destructive actions require explicit confirmation and are fully audited.
 - **Framework**: Spring Boot 3.2
 - **Database**: H2 (embedded) / PostgreSQL (production)
 - **Security**: Spring Security + JWT
-- **AI**: Ollama with llama3.2:1b
+- **AI**: Google Gemini API with gemini-1.5-flash
 - **Real-time**: WebSocket
 - **Build**: Maven
 

@@ -3,7 +3,10 @@ import type {
   Service, HealthCheck, Metrics, Incident, AuditLog, Dashboard,
   AIAnalysis, LifecycleActionRequest, LifecycleActionResponse,
   AuthRequest, RegisterRequest, AuthResponse, LogResponse,
-  ProcessStatus, WallboardData, Page
+  ProcessStatus, WallboardData, Page,
+  JvmInfo, HeapInfo, ThreadDumpInfo,
+  HttpTrace, LoggerInfo, LoggerChangeResult,
+  EnvironmentInfo, PropertyValue
 } from '@/types';
 
 const API_BASE = '/api';
@@ -310,6 +313,305 @@ class ApiClient {
   async getWallboardData(): Promise<WallboardData> {
     const { data } = await this.client.get<WallboardData>('/wallboard');
     return data;
+  }
+
+  // Diagnostics
+  async getJvmInfo(): Promise<JvmInfo> {
+    const { data } = await this.client.get<JvmInfo>('/diagnostics/jvm/info');
+    return data;
+  }
+
+  async getHeapInfo(): Promise<HeapInfo> {
+    const { data } = await this.client.get<HeapInfo>('/diagnostics/jvm/heap');
+    return data;
+  }
+
+  async getThreadDump(): Promise<ThreadDumpInfo> {
+    const { data } = await this.client.get<ThreadDumpInfo>('/diagnostics/jvm/threads');
+    return data;
+  }
+
+  async requestGC(): Promise<{ success: boolean; message: string; memoryFreedBytes?: number }> {
+    const { data } = await this.client.post('/diagnostics/jvm/gc');
+    return data;
+  }
+
+  async downloadThreadDump(): Promise<Blob> {
+    const { data } = await this.client.get('/diagnostics/jvm/threads/download', {
+      responseType: 'blob',
+    });
+    return data;
+  }
+
+  // HTTP Traces
+  async getHttpTraces(limit = 100): Promise<HttpTrace[]> {
+    const { data } = await this.client.get<HttpTrace[]>('/diagnostics/http/traces', {
+      params: { limit },
+    });
+    return data;
+  }
+
+  async clearHttpTraces(): Promise<void> {
+    await this.client.delete('/diagnostics/http/traces');
+  }
+
+  // Loggers
+  async getLoggers(): Promise<LoggerInfo[]> {
+    const { data } = await this.client.get<LoggerInfo[]>('/diagnostics/loggers');
+    return data;
+  }
+
+  async setLoggerLevel(loggerName: string, level: string): Promise<LoggerChangeResult> {
+    const { data } = await this.client.post<LoggerChangeResult>(
+      `/diagnostics/loggers/${encodeURIComponent(loggerName)}/level`,
+      null,
+      { params: { level } }
+    );
+    return data;
+  }
+
+  async resetLoggerLevel(loggerName: string): Promise<LoggerChangeResult> {
+    const { data } = await this.client.delete<LoggerChangeResult>(
+      `/diagnostics/loggers/${encodeURIComponent(loggerName)}/level`
+    );
+    return data;
+  }
+
+  async getAvailableLogLevels(): Promise<string[]> {
+    const { data } = await this.client.get<string[]>('/diagnostics/loggers/levels');
+    return data;
+  }
+
+  // Environment
+  async getEnvironment(): Promise<EnvironmentInfo> {
+    const { data } = await this.client.get<EnvironmentInfo>('/diagnostics/env');
+    return data;
+  }
+
+  async searchEnvironmentProperties(pattern: string): Promise<PropertyValue[]> {
+    const { data } = await this.client.get<PropertyValue[]>('/diagnostics/env/search', {
+      params: { pattern },
+    });
+    return data;
+  }
+
+  // Remote Service Logs (from registered services)
+  async getServiceRemoteLogs(
+    serviceId: number,
+    lines = 100,
+    level?: string,
+    instanceId?: string
+  ): Promise<import('@/types').RemoteLogEntry[]> {
+    const { data } = await this.client.get<import('@/types').RemoteLogEntry[]>(
+      `/services/${serviceId}/logs`,
+      {
+        params: { lines, level, instanceId },
+      }
+    );
+    return data;
+  }
+
+  async searchServiceLogs(
+    serviceId: number,
+    query?: string,
+    startTime?: string,
+    endTime?: string,
+    level?: string,
+    maxResults = 100
+  ): Promise<import('@/types').RemoteLogEntry[]> {
+    const { data } = await this.client.get<import('@/types').RemoteLogEntry[]>(
+      `/services/${serviceId}/logs/search`,
+      {
+        params: { query, startTime, endTime, level, maxResults },
+      }
+    );
+    return data;
+  }
+
+  async getServiceLogStatistics(
+    serviceId: number,
+    startTime?: string,
+    endTime?: string
+  ): Promise<import('@/types').LogStatistics> {
+    const { data } = await this.client.get<import('@/types').LogStatistics>(
+      `/services/${serviceId}/logs/statistics`,
+      {
+        params: { startTime, endTime },
+      }
+    );
+    return data;
+  }
+
+  // Service Configuration
+  async getServiceConfiguration(serviceId: number): Promise<EnvironmentInfo> {
+    try {
+      console.log(`[API] Fetching configuration for service ${serviceId}`);
+      const response = await this.client.get<EnvironmentInfo>(
+        `/services/${serviceId}/configuration`
+      );
+      
+      // Validate response
+      if (!response || !response.data) {
+        console.warn(`[API] Empty response for configuration service ${serviceId}`);
+        return {
+          timestamp: Date.now(),
+          activeProfiles: [],
+          propertySources: [],
+        };
+      }
+      
+      const data = response.data;
+      
+      // Check if response is actually empty
+      const hasData = (data.propertySources && data.propertySources.length > 0) ||
+                      (data.activeProfiles && data.activeProfiles.length > 0);
+      
+      if (!hasData) {
+        console.warn(`[API] Configuration response appears empty for service ${serviceId}`, data);
+      } else {
+        console.log(`[API] Configuration fetched successfully for service ${serviceId}:`, {
+          propertySources: data.propertySources?.length || 0,
+          activeProfiles: data.activeProfiles?.length || 0
+        });
+      }
+      
+      // Ensure required fields are present
+      if (!data.timestamp) data.timestamp = Date.now();
+      if (!data.activeProfiles) data.activeProfiles = [];
+      if (!data.propertySources) data.propertySources = [];
+      
+      return data;
+    } catch (error) {
+      console.error(`[API] Error fetching configuration for service ${serviceId}:`, error);
+      
+      // Return empty configuration instead of throwing
+      return {
+        timestamp: Date.now(),
+        activeProfiles: [],
+        propertySources: [],
+      };
+    }
+  }
+
+  // Infrastructure Monitoring
+  async getServiceInfrastructure(serviceId: number): Promise<import('@/types').InfrastructureInfo> {
+    try {
+      console.log(`[API] Fetching infrastructure for service ${serviceId}`);
+      const response = await this.client.get<import('@/types').InfrastructureInfo>(
+        `/services/${serviceId}/infrastructure`
+      );
+      
+      // Validate response
+      if (!response || !response.data) {
+        console.warn(`[API] Empty response for infrastructure service ${serviceId}`);
+        return this.createEmptyInfrastructureInfo(serviceId);
+      }
+      
+      const data = response.data;
+      
+      // Check if response is actually empty (empty object or all nulls)
+      const hasData = data.serviceId != null || 
+                      data.serviceName != null || 
+                      data.osName != null || 
+                      data.jvmName != null;
+      
+      if (!hasData) {
+        console.warn(`[API] Infrastructure response appears empty for service ${serviceId}`, data);
+        // Still return the data, but log a warning
+      } else {
+        console.log(`[API] Infrastructure fetched successfully for service ${serviceId}:`, {
+          serviceName: data.serviceName,
+          osName: data.osName,
+          jvmName: data.jvmName,
+          cpuLoad: data.systemCpuLoad
+        });
+      }
+      
+      // Ensure at least service info is present
+      if (!data.serviceId) data.serviceId = serviceId;
+      
+      return data;
+    } catch (error) {
+      console.error(`[API] Error fetching infrastructure for service ${serviceId}:`, error);
+      
+      // Return empty infrastructure info instead of throwing
+      // This allows the UI to show "No data" instead of an error
+      return this.createEmptyInfrastructureInfo(serviceId);
+    }
+  }
+  
+  private createEmptyInfrastructureInfo(serviceId: number): import('@/types').InfrastructureInfo {
+    return {
+      serviceId,
+      serviceName: 'Unknown',
+      osName: 'Unknown',
+      osVersion: 'Unknown',
+      osArch: 'Unknown',
+      jvmName: 'Unknown',
+      jvmVersion: 'Unknown',
+      jvmVendor: 'Unknown',
+      availableProcessors: 0,
+      systemCpuLoad: 0,
+      processCpuLoad: 0,
+    };
+  }
+
+  async getServiceJvmInfo(serviceId: number): Promise<import('@/types').RemoteJvmInfo> {
+    try {
+      console.log(`[API] Fetching JVM info for service ${serviceId}`);
+      const response = await this.client.get<import('@/types').RemoteJvmInfo>(
+        `/services/${serviceId}/jvm`
+      );
+      
+      // Validate response
+      if (!response || !response.data) {
+        console.warn(`[API] Empty response for JVM info service ${serviceId}`);
+        return this.createEmptyJvmInfo(serviceId);
+      }
+      
+      const data = response.data;
+      
+      // Check if response is actually empty
+      const hasData = data.serviceId != null || 
+                      data.serviceName != null || 
+                      data.jvmName != null || 
+                      data.heapUsed != null;
+      
+      if (!hasData) {
+        console.warn(`[API] JVM info response appears empty for service ${serviceId}`, data);
+      } else {
+        console.log(`[API] JVM info fetched successfully for service ${serviceId}:`, {
+          serviceName: data.serviceName,
+          jvmName: data.jvmName,
+          heapUsed: data.heapUsed
+        });
+      }
+      
+      // Ensure at least service info is present
+      if (!data.serviceId) data.serviceId = serviceId;
+      
+      return data;
+    } catch (error) {
+      console.error(`[API] Error fetching JVM info for service ${serviceId}:`, error);
+      
+      // Return empty JVM info instead of throwing
+      return this.createEmptyJvmInfo(serviceId);
+    }
+  }
+  
+  private createEmptyJvmInfo(serviceId: number): import('@/types').RemoteJvmInfo {
+    return {
+      serviceId,
+      serviceName: 'Unknown',
+      jvmName: 'Unknown',
+      jvmVersion: 'Unknown',
+      jvmVendor: 'Unknown',
+      heapUsed: 0,
+      heapMax: 0,
+      nonHeapUsed: 0,
+      threadCount: 0,
+      uptime: 0,
+    };
   }
 }
 

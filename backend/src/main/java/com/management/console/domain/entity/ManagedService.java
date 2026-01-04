@@ -114,6 +114,13 @@ public class ManagedService {
     @Builder.Default
     private Boolean enabled = true;
 
+    // Authentication token for service-to-console communication
+    @Column(unique = true, length = 128)
+    private String authenticationToken;
+
+    // Service instance identifier (for horizontally scaled services)
+    private String instanceId;
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {

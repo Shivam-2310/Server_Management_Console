@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -160,33 +161,57 @@ public class IncidentService {
 
     @Transactional(readOnly = true)
     public IncidentDTO getIncident(Long incidentId) {
-        return serviceMapper.toDTO(getIncidentEntity(incidentId));
+        Incident incident = getIncidentEntity(incidentId);
+        // Force initialization of lazy collections before mapping
+        new ArrayList<>(incident.getTags());
+        return serviceMapper.toDTO(incident);
     }
 
     @Transactional(readOnly = true)
     public Page<IncidentDTO> getAllIncidents(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return incidentRepository.findAllByOrderByCreatedAtDesc(pageable)
-                .map(serviceMapper::toDTO);
+        Page<Incident> incidentPage = incidentRepository.findAllByOrderByCreatedAtDesc(pageable);
+        // Force initialization of lazy collections before mapping
+        incidentPage.getContent().forEach(incident -> {
+            new ArrayList<>(incident.getTags());
+        });
+        return incidentPage.map(serviceMapper::toDTO);
     }
 
     @Transactional(readOnly = true)
     public List<IncidentDTO> getActiveIncidents() {
-        return incidentRepository.findActiveIncidents().stream()
+        List<Incident> incidents = incidentRepository.findActiveIncidents();
+        // Force initialization of lazy collections before mapping
+        incidents.forEach(incident -> {
+            // Access tags to force Hibernate to load them while session is open
+            // Create a new ArrayList to ensure the collection is fully loaded
+            new ArrayList<>(incident.getTags());
+        });
+        return incidents.stream()
                 .map(serviceMapper::toDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<IncidentDTO> getActiveIncidentsByService(Long serviceId) {
-        return incidentRepository.findActiveIncidentsByService(serviceId).stream()
+        List<Incident> incidents = incidentRepository.findActiveIncidentsByService(serviceId);
+        // Force initialization of lazy collections before mapping
+        incidents.forEach(incident -> {
+            new ArrayList<>(incident.getTags());
+        });
+        return incidents.stream()
                 .map(serviceMapper::toDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<IncidentDTO> getIncidentsByService(Long serviceId) {
-        return incidentRepository.findByServiceIdOrderByCreatedAtDesc(serviceId).stream()
+        List<Incident> incidents = incidentRepository.findByServiceIdOrderByCreatedAtDesc(serviceId);
+        // Force initialization of lazy collections before mapping
+        incidents.forEach(incident -> {
+            new ArrayList<>(incident.getTags());
+        });
+        return incidents.stream()
                 .map(serviceMapper::toDTO)
                 .collect(Collectors.toList());
     }

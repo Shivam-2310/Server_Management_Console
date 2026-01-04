@@ -51,5 +51,7 @@ public interface ManagedServiceRepository extends JpaRepository<ManagedService, 
     List<ManagedService> findByTagsContaining(String tag);
 
     boolean existsByName(String name);
+
+    Optional<ManagedService> findByAuthenticationToken(String token);
 }
 

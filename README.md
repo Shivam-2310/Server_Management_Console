@@ -30,7 +30,7 @@ A centralized control plane that can **observe**, **understand**, and **control*
 │ - Service Registry           │
 │ - Health & Metrics Engine    │
 │ - Lifecycle Controller       │
-│ - AI Intelligence (Ollama)   │
+│ - AI Intelligence (Gemini)   │
 │ - Audit & Safety Engine      │
 │ - WebSocket Server           │
 └──────────▲───────────────────┘
@@ -144,7 +144,7 @@ wsService.requestDashboard();
 - **Java 17+** (for backend)
 - **Node.js 18+** (for frontend)
 - **Maven 3.8+** (for backend)
-- **Ollama** (optional, for AI features)
+- **Google Gemini API Key** (configured in application.yml, for AI features)
 
 ### Step 1: Start Backend
 
@@ -172,15 +172,9 @@ Frontend will start on **http://localhost:3001**
 
 **Note:** The frontend dev server automatically proxies `/api` and `/ws` to the backend.
 
-### Step 3: Start Ollama (Optional - for AI features)
+### Step 3: Access the Application
 
-```bash
-ollama run llama3.2:1b
-```
-
-Ensure Ollama is running on **http://localhost:11434**
-
-### Step 4: Access the Application
+**Note:** AI features use Google Gemini API (configured in `application.yml`). The API key is already set up.
 
 1. Open browser: **http://localhost:3001**
 2. Login with default credentials:
@@ -320,7 +314,7 @@ server-management-console/
 │   │   ├── domain/            # Entities and enums
 │   │   ├── dto/               # Data transfer objects
 │   │   ├── service/           # Business logic
-│   │   │   └── ai/            # Ollama AI integration
+│   │   │   └── ai/            # Gemini AI integration
 │   │   ├── scheduler/         # Scheduled tasks
 │   │   ├── security/          # JWT and auth
 │   │   └── websocket/         # WebSocket handlers
@@ -360,11 +354,11 @@ app:
   
   # AI Configuration
   ai:
-    ollama:
-      base-url: http://localhost:11434
-      model: llama3.2:1b
+    gemini:
+      api-key: AIzaSyCId4zpV3OlqMY1MqNtjeRtYgE12TSzdn0
+      model: gemini-1.5-flash
       enabled: true
-      timeout: 30000
+      timeout: 120000
   
   # Lifecycle settings
   lifecycle:
@@ -450,10 +444,7 @@ Every action logs:
    npm run dev
    ```
 
-3. **Terminal 3 - Ollama (Optional):**
-   ```bash
-   ollama run llama3.2:1b
-   ```
+**Note:** AI features use Google Gemini API. No additional setup required.
 
 ### Building for Production
 
@@ -497,7 +488,7 @@ All actions are:
 - ✅ Role-protected (VIEWER/OPERATOR/ADMIN)
 - ✅ Confirmation required for destructive actions
 
-### AI Intelligence (Ollama + llama3.2:1b)
+### AI Intelligence (Google Gemini API + gemini-1.5-flash)
 - **Anomaly Detection**: Memory leaks, CPU saturation, error spikes
 - **Risk Scoring**: 0-100 stability and risk scores per service
 - **Incident Summaries**: AI-generated summaries with recommendations

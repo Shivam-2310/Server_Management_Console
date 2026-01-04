@@ -10,8 +10,10 @@ import com.management.console.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -23,12 +25,63 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final ManagedServiceRepository serviceRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JdbcTemplate jdbcTemplate;
 
     @Override
     public void run(String... args) {
+        migrateDatabaseSchema();
         initializeUsers();
         // Sample services initialization disabled - only show actually running services
         // initializeSampleServices();
+    }
+    
+    /**
+     * Migrate database schema to fix authentication_token column length.
+     * Hibernate's ddl-auto: update doesn't always alter existing columns,
+     * so we manually ensure the column is updated to VARCHAR(128).
+     */
+    @Transactional
+    public void migrateDatabaseSchema() {
+        try {
+            // Check if table exists first
+            String checkTableSql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES " +
+                                 "WHERE TABLE_NAME = 'MANAGED_SERVICES'";
+            Integer tableExists = jdbcTemplate.queryForObject(checkTableSql, Integer.class);
+            
+            if (tableExists != null && tableExists > 0) {
+                // Table exists, try to alter the column
+                // H2 syntax: ALTER TABLE table_name ALTER COLUMN column_name VARCHAR(new_size)
+                String alterSql = "ALTER TABLE managed_services ALTER COLUMN authentication_token VARCHAR(128)";
+                jdbcTemplate.execute(alterSql);
+                log.info("Successfully migrated authentication_token column to VARCHAR(128)");
+            } else {
+                log.debug("Table managed_services does not exist yet, will be created with correct schema");
+            }
+        } catch (Exception e) {
+            // Column might already be correct size, or error occurred
+            String errorMsg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+            if (errorMsg.contains("already") || errorMsg.contains("duplicate") || 
+                errorMsg.contains("cannot alter")) {
+                // Column might already be correct size, try to verify
+                try {
+                    String checkSql = "SELECT CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS " +
+                                     "WHERE TABLE_SCHEMA = 'PUBLIC' AND TABLE_NAME = 'MANAGED_SERVICES' " +
+                                     "AND COLUMN_NAME = 'AUTHENTICATION_TOKEN'";
+                    Integer currentLength = jdbcTemplate.queryForObject(checkSql, Integer.class);
+                    if (currentLength != null && currentLength >= 128) {
+                        log.debug("Column already has correct size: {}", currentLength);
+                    } else if (currentLength != null) {
+                        log.warn("Column exists with size {} but could not be altered. " +
+                                "Please manually run: ALTER TABLE managed_services ALTER COLUMN authentication_token VARCHAR(128)",
+                                currentLength);
+                    }
+                } catch (Exception e2) {
+                    log.debug("Could not verify column size (this is OK if table doesn't exist yet)");
+                }
+            } else {
+                log.debug("Schema migration completed (error may be expected): {}", e.getMessage());
+            }
+        }
     }
 
     private void initializeUsers() {

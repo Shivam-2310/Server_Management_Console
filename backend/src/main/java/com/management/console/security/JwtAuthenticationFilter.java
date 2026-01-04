@@ -47,21 +47,41 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             username = jwtService.extractUsername(jwt);
 
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
+            if (username != null) {
+                // Only attempt JWT authentication if no authentication is already set
+                // or if the existing authentication is from a service (ROLE_SERVICE)
+                var existingAuth = SecurityContextHolder.getContext().getAuthentication();
+                boolean shouldAuthenticate = existingAuth == null || 
+                    existingAuth.getAuthorities().stream()
+                        .anyMatch(a -> a.getAuthority().equals("ROLE_SERVICE"));
                 
-                if (jwtService.isTokenValid(jwt, userDetails)) {
-                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null,
-                            userDetails.getAuthorities()
-                    );
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                if (shouldAuthenticate) {
+                    UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
+                    
+                    if (jwtService.isTokenValid(jwt, userDetails)) {
+                        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        );
+                        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authToken);
+                        log.debug("JWT authentication successful for user: {}", username);
+                    } else {
+                        log.warn("JWT token validation failed for user: {}", username);
+                        // Only clear context if there was no previous authentication
+                        if (existingAuth == null) {
+                            SecurityContextHolder.clearContext();
+                        }
+                    }
                 }
             }
         } catch (Exception e) {
-            log.debug("JWT token validation failed: {}", e.getMessage());
+            log.warn("JWT token validation failed: {}", e.getMessage());
+            // Only clear context if there was no previous authentication
+            if (SecurityContextHolder.getContext().getAuthentication() == null) {
+                SecurityContextHolder.clearContext();
+            }
         }
         
         filterChain.doFilter(request, response);

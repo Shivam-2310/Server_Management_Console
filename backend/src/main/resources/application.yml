@@ -5,11 +5,24 @@ spring:
   application:
     name: server-management-console
   
+  # WebClient configuration for large responses (logfiles, env, etc.)
+  codec:
+    max-in-memory-size: -1  # Unlimited - maximum memory limit for large actuator responses (no limit)
+  
   datasource:
     url: jdbc:h2:file:./data/management-console;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver
     username: sa
     password: 
+    hikari:
+      # Connection pool configuration to prevent connection exhaustion
+      minimum-idle: 5                    # Minimum idle connections
+      maximum-pool-size: 20               # Maximum pool size (increased from default 10)
+      connection-timeout: 30000           # 30 seconds to acquire connection
+      idle-timeout: 600000                # 10 minutes - idle connections timeout
+      max-lifetime: 1800000               # 30 minutes - maximum connection lifetime
+      leak-detection-threshold: 60000     # 60 seconds - detect connection leaks
+      pool-name: ManagementConsolePool 
   
   h2:
     console:
@@ -24,6 +37,22 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.H2Dialect
+  
+  # DevTools configuration for hot reload
+  devtools:
+    restart:
+      enabled: true
+      # Exclude static resources and config files from triggering restart
+      exclude: "static/**,public/**,templates/**,META-INF/maven/**,META-INF/resources/**,application*.yml"
+      # Additional paths to watch (default is classpath)
+      additional-paths: "src/main/java,src/main/resources"
+      # Poll interval for checking changes (milliseconds)
+      poll-interval: 2s
+      # Quiet period to wait after last change before restarting
+      quiet-period: 1s
+    livereload:
+      enabled: true
+      port: 35729
 
 # Management Console Configuration
 management:
@@ -43,13 +72,13 @@ app:
     metrics-poll-interval: 15000
     frontend-check-interval: 30000
   
-  # Ollama AI Configuration
+  # Gemini AI Configuration
   ai:
-    ollama:
-      base-url: http://localhost:11434
-      model: llama3.2:1b
-      enabled: true
-      timeout: 30000
+    gemini:
+      api-key: AIzaSyCId4zpV3OlqMY1MqNtjeRtYgE12TSzdn0
+      model: gemini-1.5-flash
+      enabled: false
+      timeout: 120000  # 120 seconds (2 minutes) - increased for proper AI response time
   
   # Lifecycle control settings
   lifecycle:

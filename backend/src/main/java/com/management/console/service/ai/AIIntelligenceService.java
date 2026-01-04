@@ -26,7 +26,7 @@ import java.util.List;
 @Slf4j
 public class AIIntelligenceService {
 
-    private final OllamaClient ollamaClient;
+    private final GeminiClient geminiClient;
     private final ManagedServiceRepository serviceRepository;
     private final ServiceMetricsRepository metricsRepository;
     private final HealthCheckResultRepository healthCheckRepository;
@@ -40,10 +40,33 @@ public class AIIntelligenceService {
         Never recommend actions that could cause data loss without explicit user confirmation.
         """;
 
-    @Transactional(readOnly = true)
+    /**
+     * Analyze service with AI. This method is split to avoid holding database connections
+     * during long-running AI requests. Data is fetched in a transaction, then released
+     * before calling the AI service.
+     */
     public AIAnalysisDTO analyzeService(Long serviceId) {
         log.info("Performing AI analysis for service: {}", serviceId);
 
+        // Fetch all data in a transaction (quick operation)
+        AnalysisData data = fetchAnalysisData(serviceId);
+
+        // Build analysis context (no database access)
+        String analysisContext = buildAnalysisContext(data.service, data.metrics, data.healthChecks, data.incidents);
+
+        // Get AI analysis (long-running, no database connection held)
+        String aiResponse = geminiClient.generateChatResponse(SYSTEM_PROMPT, analysisContext);
+
+        // Build response (no database access)
+        return buildAnalysisDTO(data.service, data.metrics, data.healthChecks, data.incidents, aiResponse);
+    }
+
+    /**
+     * Fetch analysis data in a transaction. This ensures the database connection
+     * is released before the long-running AI call.
+     */
+    @Transactional(readOnly = true)
+    private AnalysisData fetchAnalysisData(Long serviceId) {
         ManagedService service = serviceRepository.findById(serviceId)
                 .orElseThrow(() -> new RuntimeException("Service not found: " + serviceId));
 
@@ -53,14 +76,25 @@ public class AIIntelligenceService {
         List<HealthCheckResult> recentHealthChecks = healthCheckRepository.findRecentChecks(serviceId, since);
         List<Incident> activeIncidents = incidentRepository.findActiveIncidentsByService(serviceId);
 
-        // Build analysis context
-        String analysisContext = buildAnalysisContext(service, recentMetrics, recentHealthChecks, activeIncidents);
+        return new AnalysisData(service, recentMetrics, recentHealthChecks, activeIncidents);
+    }
 
-        // Get AI analysis
-        String aiResponse = ollamaClient.generateChatResponse(SYSTEM_PROMPT, analysisContext);
+    /**
+     * Helper class to hold analysis data after transaction completes.
+     */
+    private static class AnalysisData {
+        final ManagedService service;
+        final List<ServiceMetrics> metrics;
+        final List<HealthCheckResult> healthChecks;
+        final List<Incident> incidents;
 
-        // Build response
-        return buildAnalysisDTO(service, recentMetrics, recentHealthChecks, activeIncidents, aiResponse);
+        AnalysisData(ManagedService service, List<ServiceMetrics> metrics,
+                    List<HealthCheckResult> healthChecks, List<Incident> incidents) {
+            this.service = service;
+            this.metrics = metrics;
+            this.healthChecks = healthChecks;
+            this.incidents = incidents;
+        }
     }
 
     private String buildAnalysisContext(ManagedService service, List<ServiceMetrics> metrics,
@@ -358,7 +392,7 @@ public class AIIntelligenceService {
 
         prompt.append("\nProvide: 1) What happened 2) Impact 3) Recommended immediate action");
 
-        String response = ollamaClient.generateChatResponse(SYSTEM_PROMPT, prompt.toString());
+        String response = geminiClient.generateChatResponse(SYSTEM_PROMPT, prompt.toString());
         
         if (response != null && !response.isEmpty()) {
             return response;
@@ -406,7 +440,7 @@ public class AIIntelligenceService {
     }
 
     public boolean isAIAvailable() {
-        return ollamaClient.isAvailable();
+        return geminiClient.isAvailable();
     }
 }
 

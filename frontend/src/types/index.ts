@@ -39,6 +39,8 @@ export interface Service {
   tags: string[];
   environment?: string;
   enabled: boolean;
+  authenticationToken?: string; // Only returned during registration
+  instanceId?: string; // For horizontally scaled services
   createdAt: string;
   updatedAt?: string;
   lastHealthCheck?: string;
@@ -303,5 +305,184 @@ export interface Page<T> {
   number: number;
   first: boolean;
   last: boolean;
+}
+
+// Diagnostics
+export interface JvmInfo {
+  timestamp: number;
+  vmName: string;
+  vmVersion: string;
+  vmVendor: string;
+  startTime: number;
+  uptime: number;
+  inputArguments?: string[];
+  systemProperties?: Record<string, string>;
+  osName: string;
+  osArch: string;
+  availableProcessors: number;
+  systemLoadAverage: number;
+  loadedClassCount: number;
+  totalLoadedClassCount: number;
+  unloadedClassCount: number;
+}
+
+export interface HeapInfo {
+  timestamp: number;
+  heapUsed: number;
+  heapMax: number;
+  heapCommitted: number;
+  heapInit: number;
+  nonHeapUsed: number;
+  nonHeapMax: number;
+  nonHeapCommitted: number;
+  memoryPools?: MemoryPoolInfo[];
+  garbageCollectors?: GCInfo[];
+}
+
+export interface MemoryPoolInfo {
+  name: string;
+  type: string;
+  used: number;
+  max: number;
+  committed: number;
+}
+
+export interface GCInfo {
+  name: string;
+  collectionCount: number;
+  collectionTime: number;
+}
+
+export interface ThreadDumpInfo {
+  timestamp: number;
+  totalThreads: number;
+  peakThreadCount: number;
+  totalStartedThreadCount: number;
+  daemonThreadCount?: number;
+  stateCounts?: Record<string, number>;
+  threads?: ThreadDetail[];
+}
+
+export interface ThreadDetail {
+  threadId: number;
+  threadName: string;
+  threadState: string;
+  daemon: boolean;
+  blocked: number;
+  waited: number;
+  lockName?: string;
+  lockOwnerName?: string;
+  stackTrace?: string[];
+}
+
+// HTTP Traces
+export interface HttpTrace {
+  timestamp: number;
+  method: string;
+  uri: string;
+  status: number;
+  timeTaken: number;
+  requestHeaders?: Record<string, string[]>;
+  responseHeaders?: Record<string, string[]>;
+  remoteAddress?: string;
+  principal?: string;
+  sessionId?: string;
+}
+
+// Logger Management
+export interface LoggerInfo {
+  name: string;
+  effectiveLevel: string;
+  configuredLevel: string | null;
+}
+
+export interface LoggerChangeResult {
+  success: boolean;
+  loggerName: string;
+  oldLevel?: string;
+  newLevel?: string;
+  effectiveLevel?: string;
+  message?: string;
+}
+
+// Environment
+export interface EnvironmentInfo {
+  timestamp: number;
+  activeProfiles?: string[];
+  defaultProfiles?: string[];
+  propertySources?: PropertySourceInfo[];
+  systemEnvironment?: Record<string, string>;
+  systemProperties?: Record<string, string>;
+}
+
+export interface PropertySourceInfo {
+  name: string;
+  type?: string;
+  propertyCount?: number;
+  properties?: Record<string, string>;
+}
+
+export interface PropertyValue {
+  name: string;
+  value: string;
+  source: string;
+  resolved: boolean;
+}
+
+// Remote Log Entry
+export interface RemoteLogEntry {
+  serviceId: number;
+  serviceName: string;
+  instanceId?: string;
+  timestamp: string;
+  level: string;
+  logger?: string;
+  message: string;
+  thread?: string;
+}
+
+// Log Statistics
+export interface LogStatistics {
+  totalLogs: number;
+  errorCount: number;
+  levelCounts: Record<string, number>;
+  firstLogTime?: string;
+  lastLogTime?: string;
+}
+
+// Infrastructure Info
+export interface InfrastructureInfo {
+  serviceId?: number;
+  serviceName?: string;
+  instanceId?: string;
+  osName?: string;
+  osVersion?: string;
+  osArch?: string;
+  availableProcessors?: number;
+  systemCpuLoad?: number;
+  processCpuLoad?: number;
+  totalPhysicalMemory?: number;
+  freePhysicalMemory?: number;
+  jvmName?: string;
+  jvmVersion?: string;
+  jvmVendor?: string;
+  jvmUptime?: number;
+  applicationVersion?: string;
+  systemProperties?: Record<string, string>;
+}
+
+// Remote JVM Info
+export interface RemoteJvmInfo {
+  serviceId?: number;
+  serviceName?: string;
+  instanceId?: string;
+  jvmName?: string;
+  jvmVersion?: string;
+  jvmVendor?: string;
+  heapUsed?: number;
+  heapMax?: number;
+  nonHeapUsed?: number;
+  threadCount?: number;
+  uptime?: number;
 }
 

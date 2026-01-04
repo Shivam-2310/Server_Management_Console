@@ -45,6 +45,8 @@ public class ServiceDTO {
     private List<String> tags;
     private String environment;
     private Boolean enabled;
+    private String authenticationToken; // Only returned during registration
+    private String instanceId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

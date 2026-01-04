@@ -89,6 +89,17 @@ public class JvmDiagnosticsService {
         info.setPeakThreadCount(threadMXBean.getPeakThreadCount());
         info.setTotalStartedThreadCount(threadMXBean.getTotalStartedThreadCount());
         
+        // Get actual daemon thread count using Thread.getAllStackTraces()
+        long[] allThreadIds = threadMXBean.getAllThreadIds();
+        int daemonCount = 0;
+        for (long threadId : allThreadIds) {
+            Thread thread = findThreadById(threadId);
+            if (thread != null && thread.isDaemon()) {
+                daemonCount++;
+            }
+        }
+        info.setDaemonThreadCount(daemonCount);
+        
         return info;
     }
 
@@ -275,6 +286,15 @@ public class JvmDiagnosticsService {
 
     // Helper methods
 
+    private Thread findThreadById(long threadId) {
+        for (Thread thread : Thread.getAllStackTraces().keySet()) {
+            if (thread.getId() == threadId) {
+                return thread;
+            }
+        }
+        return null;
+    }
+
     private ManagedService getService(Long serviceId) {
         return serviceRepository.findById(serviceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Service not found: " + serviceId));
@@ -351,6 +371,7 @@ public class JvmDiagnosticsService {
         private int totalThreads;
         private int peakThreadCount;
         private long totalStartedThreadCount;
+        private int daemonThreadCount;
         private Map<Thread.State, Integer> stateCounts;
         private List<ThreadDetail> threads;
     }

@@ -40,8 +40,8 @@ public class DashboardController {
         boolean available = aiService.isAIAvailable();
         return ResponseEntity.ok(Map.of(
                 "available", available,
-                "model", "llama3.2:1b",
-                "provider", "Ollama"
+                "model", "gemini-1.5-flash",
+                "provider", "Gemini"
         ));
     }
 }
