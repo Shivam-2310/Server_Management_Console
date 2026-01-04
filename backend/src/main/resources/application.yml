@@ -75,7 +75,7 @@ app:
   # Gemini AI Configuration
   ai:
     gemini:
-      api-key: AIzaSyCId4zpV3OlqMY1MqNtjeRtYgE12TSzdn0
+      api-key: GEMINI_API_KEY
       model: gemini-1.5-flash
       enabled: false
       timeout: 120000  # 120 seconds (2 minutes) - increased for proper AI response time
