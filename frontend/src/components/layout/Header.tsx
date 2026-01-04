@@ -12,12 +12,14 @@ import {
 import { useAuthStore, useDashboardStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
+import { NotificationDropdown } from '../NotificationDropdown';
 
 export function Header() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { dashboard } = useDashboardStore();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleLogout = () => {
@@ -71,23 +73,30 @@ export function Header() {
         </div>
 
         {/* Notifications */}
-        <motion.button
-          className="relative p-2 text-obsidian-300 hover:text-white hover:bg-obsidian-800 rounded-lg transition-colors"
-          whileHover={{ scale: 1.1, rotate: [0, -10, 10, -10, 0] }}
-          whileTap={{ scale: 0.95 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-        >
-          <Bell className="w-5 h-5" style={{ strokeWidth: 2.5 }} />
-          {(dashboard?.activeIncidents || 0) > 0 && (
-            <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full"
-            >
-              {dashboard?.activeIncidents}
-            </motion.span>
-          )}
-        </motion.button>
+        <div className="relative">
+          <motion.button
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="relative p-2 text-obsidian-300 hover:text-white hover:bg-obsidian-800 rounded-lg transition-colors"
+            whileHover={{ scale: 1.1, rotate: [0, -10, 10, -10, 0] }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+          >
+            <Bell className="w-5 h-5" style={{ strokeWidth: 2.5 }} />
+            {((dashboard?.activeIncidentsList?.length || 0) > 0) && (
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full"
+              >
+                {dashboard?.activeIncidentsList?.length || 0}
+              </motion.span>
+            )}
+          </motion.button>
+          <NotificationDropdown
+            isOpen={showNotifications}
+            onClose={() => setShowNotifications(false)}
+          />
+        </div>
 
         {/* User Menu */}
         <div className="relative">

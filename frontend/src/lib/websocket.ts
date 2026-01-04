@@ -1,5 +1,5 @@
-import { useDashboardStore } from './store';
-import type { WebSocketMessage, Dashboard, HealthCheck } from '@/types';
+import { useDashboardStore, useUIStore } from './store';
+import type { WebSocketMessage, Dashboard, HealthCheck, Incident } from '@/types';
 
 class WebSocketService {
   private ws: WebSocket | null = null;
@@ -74,16 +74,45 @@ class WebSocketService {
         break;
 
       case 'INCIDENT_CREATED':
-        // Could trigger a notification
+        // Trigger a notification
         if (message.data) {
-          console.log('New incident:', message.data);
+          const incident = message.data as Incident;
+          console.log('New incident:', incident);
+          
+          const uiStore = useUIStore.getState();
+          const severity = incident.severity;
+          let notificationType: 'error' | 'warning' | 'info' = 'info';
+          
+          if (severity === 'CRITICAL') {
+            notificationType = 'error';
+          } else if (severity === 'HIGH') {
+            notificationType = 'warning';
+          }
+          
+          uiStore.addNotification({
+            type: notificationType,
+            title: `New ${severity} Incident: ${incident.title}`,
+            message: incident.description || `Service: ${incident.serviceName || 'Unknown'}`,
+            duration: severity === 'CRITICAL' ? 10000 : 5000,
+          });
         }
         break;
 
       case 'ACTION_EXECUTED':
-        // Could trigger a notification
+        // Trigger a notification
         if (message.data) {
-          console.log('Action executed:', message.data);
+          const action = message.data as { action: string; status: string; serviceName?: string; message?: string };
+          console.log('Action executed:', action);
+          
+          const uiStore = useUIStore.getState();
+          const isSuccess = action.status === 'SUCCESS';
+          
+          uiStore.addNotification({
+            type: isSuccess ? 'success' : 'error',
+            title: `Action ${action.action} ${isSuccess ? 'Succeeded' : 'Failed'}`,
+            message: action.message || `Service: ${action.serviceName || 'Unknown'}`,
+            duration: 5000,
+          });
         }
         break;
 

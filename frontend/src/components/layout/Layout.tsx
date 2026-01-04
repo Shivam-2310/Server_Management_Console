@@ -3,6 +3,7 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { ToastNotifications } from '../ToastNotifications';
 import { useAuthStore, useUIStore } from '@/lib/store';
 import wsService from '@/lib/websocket';
 import { cn } from '@/lib/utils';
@@ -35,6 +36,7 @@ export function Layout() {
         animate={{ marginLeft: sidebarCollapsed ? 72 : 240 }}
       >
         <Header />
+        <ToastNotifications />
 
         <main className="p-6">
           <div>
